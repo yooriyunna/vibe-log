@@ -17,7 +17,7 @@ const { tag, logs } = Astro.props as { tag: string; logs: Log[] };
   <h1>#{tag} <small>{logs.length}개</small></h1>
   <ul>
     {logs.map((l) => (
-      <li><a href={url(`logs/${l.id}`)}>Day {l.dayNo} · {l.data.title}</a> <span>{fmt(l.data.date)}</span></li>
+      <li><a href={url(`logs/${l.id}`)}><b class="no">#{l.no}</b> {l.data.title}</a> <span>{fmt(l.data.date)}</span></li>
     ))}
   </ul>
 </Base>
@@ -26,5 +26,6 @@ const { tag, logs } = Astro.props as { tag: string; logs: Log[] };
   small { color: var(--muted); font-size: 0.9rem; font-weight: 400; }
   ul { padding-left: 18px; }
   li { margin: 8px 0; }
+  .no { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); font-weight: 600; margin-right: 4px; }
   li span { color: var(--muted); font-size: 0.85rem; margin-left: 6px; }
 </style>

@@ -1,6 +1,6 @@
-# 1일 1바이브코딩
+# Vibe Log
 
-매일 하나씩, AI와 함께 만든 것을 기록하는 사이트 (Astro + GitHub Pages)
+AI와 함께 바이브코딩으로 만든 것을 기록하는 사이트 — 하루에 몇 개든 OK (Astro + GitHub Pages)
 
 ## 처음 한 번만: 배포 설정
 
@@ -23,7 +23,7 @@
 ```bash
 npm run new -- "오늘 만든 것 제목"   # src/content/logs/YYYY-MM-DD.md 생성
 # 파일의 빈칸 4개를 채운 뒤
-git add . && git commit -m "Day N" && git push
+git add . && git commit -m "#N 제목" && git push
 ```
 
 push하면 자동으로 배포됩니다. 로컬에서 미리 보려면 `npm run dev`를 실행하세요.
@@ -39,7 +39,6 @@ push하면 자동으로 배포됩니다. 로컬에서 미리 보려면 `npm run 
 | `link` | 결과물 링크 (데모, 저장소 등) |
 | `cover` | 대표 스크린샷 (예: `./images/2026-11-18-cover.png`) — 글 상단과 홈 목록 썸네일에 표시 |
 | `coverAlt` | 대표 스크린샷 설명 |
-| `day` | N일차를 직접 지정 (비우면 날짜순으로 자동 계산) |
 | `draft: true` | 사이트에 올리지 않음 |
 
 ### 스크린샷 넣기

@@ -1,71 +1,101 @@
 ---
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
-import { getLogs, fmt, ymd, streak, url } from '../lib/logs';
+import { getLogs, groupByDay, fmtDay, ymd, streak, url } from '../lib/logs';
 
 const logs = await getLogs();
+const groups = groupByDay(logs);
 const s = streak(logs);
 
-// 최근 12주 잔디
-const done = new Set(logs.map((l) => ymd(l.data.date)));
+// 날짜별 개수
+const count = new Map<string, number>();
+for (const l of logs) count.set(ymd(l.data.date), (count.get(ymd(l.data.date)) ?? 0) + 1);
+
+// 최근 12주 잔디 — 개수만큼 진하게 (1 / 2 / 3개 이상)
 const today = new Date();
 const start = new Date(today);
 start.setDate(start.getDate() - (7 * 12 - 1) - today.getDay()); // 일요일부터 시작
-const cells: { d: string; on: boolean; future: boolean }[] = [];
-for (const c = new Date(start); c <= new Date(today.getTime() + (6 - today.getDay()) * 864e5); c.setDate(c.getDate() + 1)) {
+const end = new Date(today.getTime() + (6 - today.getDay()) * 864e5);
+const cells: { d: string; n: number; future: boolean }[] = [];
+for (const c = new Date(start); c <= end; c.setDate(c.getDate() + 1)) {
   const d = ymd(c);
-  cells.push({ d, on: done.has(d), future: c > today });
+  cells.push({ d, n: count.get(d) ?? 0, future: c > today });
 }
+const lv = (n: number) => (n >= 3 ? 3 : n);
 ---
 <Base>
   <section class="hero">
-    <h1>매일 하나씩 만들어요.</h1>
-    <p>AI와 함께 하루 한 개씩 만든 것을 기록합니다. 업무 자동화, 작은 도구, 실험까지.</p>
+    <h1>만들고, 기록해요.</h1>
+    <p>AI와 함께 바이브코딩으로 만든 것들. 업무 자동화, 작은 도구, 실험까지 — 하루에 몇 개든.</p>
     <div class="stats">
       <div><b>{logs.length}</b><span>누적 기록</span></div>
+      <div><b>{count.size}일</b><span>기록한 날</span></div>
       <div><b>{s}일</b><span>연속 기록</span></div>
     </div>
-    <div class="grass" aria-label="최근 12주 기록 현황">
-      {cells.map((c) => <i class:list={{ on: c.on, future: c.future }} title={c.d}></i>)}
+    <div class="grass-wrap">
+      <div class="grass" aria-label="최근 12주 기록 현황">
+        {cells.map((c) => (
+          <i class:list={[`lv${lv(c.n)}`, { future: c.future }]} title={c.n ? `${c.d} · ${c.n}개` : c.d}></i>
+        ))}
+      </div>
+      <div class="legend" aria-hidden="true">
+        적음 <i class="lv0"></i><i class="lv1"></i><i class="lv2"></i><i class="lv3"></i> 많음
+      </div>
     </div>
   </section>
 
-  <ol class="list">
-    {logs.map((l) => (
-      <li class:list={{ 'has-thumb': l.data.cover }}>
-        <div>
-          <a href={url(`logs/${l.id}`)}>
-            <span class="meta">Day {l.dayNo} · {fmt(l.data.date)}</span>
-            <span class="title">{l.data.title}</span>
-          </a>
-          <div>{l.data.tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
-        </div>
-        {l.data.cover && (
-          <a href={url(`logs/${l.id}`)} tabindex="-1" aria-hidden="true">
-            <Image class="thumb" src={l.data.cover} alt="" width={240} />
-          </a>
-        )}
-      </li>
-    ))}
-  </ol>
+  {groups.map((g) => (
+    <section class="day">
+      <h2>{fmtDay(g.date)} <span>· {g.items.length}개</span></h2>
+      <ol class="list">
+        {g.items.map((l) => (
+          <li class:list={{ 'has-thumb': l.data.cover }}>
+            <div>
+              <a href={url(`logs/${l.id}`)}>
+                <span class="no">#{l.no}</span>
+                <span class="title">{l.data.title}</span>
+              </a>
+              <div>{l.data.tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+            </div>
+            {l.data.cover && (
+              <a href={url(`logs/${l.id}`)} tabindex="-1" aria-hidden="true">
+                <Image class="thumb" src={l.data.cover} alt="" width={240} />
+              </a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  ))}
 </Base>
 
 <style>
+  .hero { margin-bottom: 40px; }
   .hero h1 { font-size: 2rem; letter-spacing: -0.03em; margin: 8px 0 4px; }
   .hero p { color: var(--muted); margin: 0 0 24px; }
   .stats { display: flex; gap: 32px; margin-bottom: 18px; }
   .stats b { display: block; font-size: 1.5rem; }
   .stats span { color: var(--muted); font-size: 0.85rem; }
-  .grass { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; width: max-content; margin-bottom: 40px; }
-  .grass i { width: 11px; height: 11px; border-radius: 2px; background: var(--line); }
-  .grass i.on { background: var(--accent); }
-  .grass i.future { background: transparent; }
-  .list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
-  .list li { padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .grass-wrap { width: max-content; }
+  .grass { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; }
+  .grass i, .legend i { width: 11px; height: 11px; border-radius: 2px; background: var(--line); display: inline-block; }
+  .lv1 { background: color-mix(in srgb, var(--accent) 40%, var(--line)) !important; }
+  .lv2 { background: color-mix(in srgb, var(--accent) 70%, var(--line)) !important; }
+  .lv3 { background: var(--accent) !important; }
+  .grass i.future { background: transparent !important; }
+  .legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 6px; font-size: 0.72rem; color: var(--muted); }
+  .legend i:first-of-type { margin-left: 4px; }
+  .legend i:last-of-type { margin-right: 4px; }
+
+  .day h2 { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin: 0; padding: 22px 0 6px; border-top: 1px solid var(--line); }
+  .day h2 span { font-weight: 400; }
+  .list { list-style: none; padding: 0; margin: 0 0 8px; }
+  .list li { padding: 12px 0; }
   .list li.has-thumb { display: flex; gap: 20px; justify-content: space-between; align-items: center; }
-  .list li > div > a { display: block; text-decoration: none; margin-bottom: 6px; }
-  .thumb { display: block; width: 120px; height: 76px; object-fit: cover; object-position: top; border-radius: 8px; border: 1px solid var(--line); flex-shrink: 0; }
-  .meta { display: block; color: var(--muted); font-size: 0.82rem; }
+  .list li > div > a { display: flex; gap: 10px; align-items: baseline; text-decoration: none; margin-bottom: 6px; }
+  .no { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; font-weight: 600; color: var(--accent); min-width: 2.2em; }
   .title { font-weight: 600; font-size: 1.1rem; }
   .list li a:hover .title { color: var(--accent); }
+  .list li > div > div { padding-left: calc(2.2em * 0.85 + 10px); }
+  .thumb { display: block; width: 120px; height: 76px; object-fit: cover; object-position: top; border-radius: 8px; border: 1px solid var(--line); flex-shrink: 0; }
 </style>

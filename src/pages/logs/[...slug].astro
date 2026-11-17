@@ -18,7 +18,7 @@ const { title, date, tools, tags, link, cover, coverAlt } = log.data;
 ---
 <Base title={title}>
   <article>
-    <p class="meta">Day {log.dayNo} · {fmt(date)}</p>
+    <p class="meta"><span class="no">#{log.no}</span> · {fmt(date)}</p>
     <h1>{title}</h1>
     <div class="info">
       {tools.length > 0 && <span>도구: {tools.join(', ')}</span>}
@@ -30,13 +30,16 @@ const { title, date, tools, tags, link, cover, coverAlt } = log.data;
   </article>
 
   <nav class="pager">
-    {older ? <a href={url(`logs/${older.id}`)}>← Day {older.dayNo}</a> : <span />}
-    {newer ? <a href={url(`logs/${newer.id}`)}>Day {newer.dayNo} →</a> : <span />}
+    {older ? <a href={url(`logs/${older.id}`)}>← #{older.no} {older.data.title}</a> : <span />}
+    {newer ? <a href={url(`logs/${newer.id}`)}>#{newer.no} {newer.data.title} →</a> : <span />}
   </nav>
 </Base>
 
 <style>
   .meta { color: var(--muted); font-size: 0.85rem; margin: 0; }
+  .no { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); font-weight: 600; }
+  .pager { gap: 16px; font-size: 0.9rem; }
+  .pager a:last-child { text-align: right; }
   h1 { font-size: 1.8rem; letter-spacing: -0.03em; margin: 4px 0 10px; }
   .info { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
   .info a { color: var(--accent); font-weight: 600; text-decoration: none; }
