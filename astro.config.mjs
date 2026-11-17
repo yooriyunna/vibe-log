@@ -6,6 +6,6 @@ import { defineConfig } from 'astro/config';
 //   - 그 외 저장소(예: vibe-log)이면:      site = 'https://<아이디>.github.io', base = '/vibe-log'
 export default defineConfig({
   site: 'https://yooriyunna.github.io',
-  base: '/',
+  base: '/vibe-log',
   trailingSlash: 'ignore',
 });
