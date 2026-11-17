@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getLogs, url } from '../../lib/logs';
+
+const logs = await getLogs();
+const count = new Map<string, number>();
+logs.flatMap((l) => l.data.tags).forEach((t) => count.set(t, (count.get(t) ?? 0) + 1));
+const tags = [...count].sort((a, b) => b[1] - a[1]);
+---
+<Base title="태그">
+  <h1>태그</h1>
+  <div>{tags.map(([t, n]) => <a class="chip" href={url(`tags/${t}`)}>#{t} {n}</a>)}</div>
+</Base>

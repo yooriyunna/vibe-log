@@ -1,0 +1,47 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getLogs, fmt, url, type Log } from '../../lib/logs';
+
+export async function getStaticPaths() {
+  const logs = await getLogs();
+  return logs.map((log, i) => ({
+    params: { slug: log.id },
+    props: { log, newer: logs[i - 1], older: logs[i + 1] },
+  }));
+}
+
+const { log, newer, older } = Astro.props as { log: Log; newer?: Log; older?: Log };
+const { Content } = await render(log);
+const { title, date, tools, tags, link } = log.data;
+---
+<Base title={title}>
+  <article>
+    <p class="meta">Day {log.dayNo} · {fmt(date)}</p>
+    <h1>{title}</h1>
+    <div class="info">
+      {tools.length > 0 && <span>도구: {tools.join(', ')}</span>}
+      {link && <a href={link} target="_blank" rel="noopener">결과물 보기 →</a>}
+    </div>
+    <div>{tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+    <div class="body"><Content /></div>
+  </article>
+
+  <nav class="pager">
+    {older ? <a href={url(`logs/${older.id}`)}>← Day {older.dayNo}</a> : <span />}
+    {newer ? <a href={url(`logs/${newer.id}`)}>Day {newer.dayNo} →</a> : <span />}
+  </nav>
+</Base>
+
+<style>
+  .meta { color: var(--muted); font-size: 0.85rem; margin: 0; }
+  h1 { font-size: 1.8rem; letter-spacing: -0.03em; margin: 4px 0 10px; }
+  .info { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
+  .info a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .body { margin-top: 28px; }
+  .body :global(h2) { font-size: 1.15rem; margin-top: 32px; padding-left: 10px; border-left: 3px solid var(--accent); }
+  .body :global(blockquote) { margin: 0; padding: 4px 16px; background: var(--accent-soft); border-radius: 8px; }
+  .pager { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .pager a { color: var(--muted); text-decoration: none; }
+  .pager a:hover { color: var(--accent); }
+</style>

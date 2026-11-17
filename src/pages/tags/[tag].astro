@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getLogs, fmt, url, type Log } from '../../lib/logs';
+
+export async function getStaticPaths() {
+  const logs = await getLogs();
+  const tags = [...new Set(logs.flatMap((l) => l.data.tags))];
+  return tags.map((tag) => ({
+    params: { tag },
+    props: { tag, logs: logs.filter((l) => l.data.tags.includes(tag)) },
+  }));
+}
+
+const { tag, logs } = Astro.props as { tag: string; logs: Log[] };
+---
+<Base title={`#${tag}`}>
+  <h1>#{tag} <small>{logs.length}개</small></h1>
+  <ul>
+    {logs.map((l) => (
+      <li><a href={url(`logs/${l.id}`)}>Day {l.dayNo} · {l.data.title}</a> <span>{fmt(l.data.date)}</span></li>
+    ))}
+  </ul>
+</Base>
+
+<style>
+  small { color: var(--muted); font-size: 0.9rem; font-weight: 400; }
+  ul { padding-left: 18px; }
+  li { margin: 8px 0; }
+  li span { color: var(--muted); font-size: 0.85rem; margin-left: 6px; }
+</style>

@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import { getLogs, fmt, ymd, streak, url } from '../lib/logs';
+
+const logs = await getLogs();
+const s = streak(logs);
+
+// 최근 12주 잔디
+const done = new Set(logs.map((l) => ymd(l.data.date)));
+const today = new Date();
+const start = new Date(today);
+start.setDate(start.getDate() - (7 * 12 - 1) - today.getDay()); // 일요일부터 시작
+const cells: { d: string; on: boolean; future: boolean }[] = [];
+for (const c = new Date(start); c <= new Date(today.getTime() + (6 - today.getDay()) * 864e5); c.setDate(c.getDate() + 1)) {
+  const d = ymd(c);
+  cells.push({ d, on: done.has(d), future: c > today });
+}
+---
+<Base>
+  <section class="hero">
+    <h1>매일 하나씩 만들어요.</h1>
+    <p>AI와 함께 하루 한 개씩 만든 것을 기록합니다. 업무 자동화, 작은 도구, 실험까지.</p>
+    <div class="stats">
+      <div><b>{logs.length}</b><span>누적 기록</span></div>
+      <div><b>{s}일</b><span>연속 기록</span></div>
+    </div>
+    <div class="grass" aria-label="최근 12주 기록 현황">
+      {cells.map((c) => <i class:list={{ on: c.on, future: c.future }} title={c.d}></i>)}
+    </div>
+  </section>
+
+  <ol class="list">
+    {logs.map((l) => (
+      <li>
+        <a href={url(`logs/${l.id}`)}>
+          <span class="meta">Day {l.dayNo} · {fmt(l.data.date)}</span>
+          <span class="title">{l.data.title}</span>
+        </a>
+        <div>{l.data.tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+      </li>
+    ))}
+  </ol>
+</Base>
+
+<style>
+  .hero h1 { font-size: 2rem; letter-spacing: -0.03em; margin: 8px 0 4px; }
+  .hero p { color: var(--muted); margin: 0 0 24px; }
+  .stats { display: flex; gap: 32px; margin-bottom: 18px; }
+  .stats b { display: block; font-size: 1.5rem; }
+  .stats span { color: var(--muted); font-size: 0.85rem; }
+  .grass { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; width: max-content; margin-bottom: 40px; }
+  .grass i { width: 11px; height: 11px; border-radius: 2px; background: var(--line); }
+  .grass i.on { background: var(--accent); }
+  .grass i.future { background: transparent; }
+  .list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+  .list li { padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .list li > a { display: block; text-decoration: none; margin-bottom: 6px; }
+  .meta { display: block; color: var(--muted); font-size: 0.82rem; }
+  .title { font-weight: 600; font-size: 1.1rem; }
+  .list li > a:hover .title { color: var(--accent); }
+</style>
