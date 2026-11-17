@@ -1,5 +1,6 @@
 ---
 import { render } from 'astro:content';
+import { Image } from 'astro:assets';
 import Base from '../../layouts/Base.astro';
 import { getLogs, fmt, url, type Log } from '../../lib/logs';
 
@@ -13,7 +14,7 @@ export async function getStaticPaths() {
 
 const { log, newer, older } = Astro.props as { log: Log; newer?: Log; older?: Log };
 const { Content } = await render(log);
-const { title, date, tools, tags, link } = log.data;
+const { title, date, tools, tags, link, cover, coverAlt } = log.data;
 ---
 <Base title={title}>
   <article>
@@ -24,6 +25,7 @@ const { title, date, tools, tags, link } = log.data;
       {link && <a href={link} target="_blank" rel="noopener">결과물 보기 →</a>}
     </div>
     <div>{tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+    {cover && <Image class="cover" src={cover} alt={coverAlt ?? title} widths={[720, 1440]} sizes="(max-width: 760px) 100vw, 720px" />}
     <div class="body"><Content /></div>
   </article>
 
@@ -39,6 +41,9 @@ const { title, date, tools, tags, link } = log.data;
   .info { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
   .info a { color: var(--accent); font-weight: 600; text-decoration: none; }
   .body { margin-top: 28px; }
+  .cover { display: block; width: 100%; height: auto; margin-top: 24px; border-radius: 10px; border: 1px solid var(--line); }
+  .body :global(img) { display: block; max-width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); margin: 16px 0 4px; }
+  .body :global(img + em), .body :global(p:has(> img) + p > em:only-child) { color: var(--muted); font-size: 0.85rem; }
   .body :global(h2) { font-size: 1.15rem; margin-top: 32px; padding-left: 10px; border-left: 3px solid var(--accent); }
   .body :global(blockquote) { margin: 0; padding: 4px 16px; background: var(--accent-soft); border-radius: 8px; }
   .pager { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); }

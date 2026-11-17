@@ -1,4 +1,5 @@
 ---
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import { getLogs, fmt, ymd, streak, url } from '../lib/logs';
 
@@ -31,12 +32,19 @@ for (const c = new Date(start); c <= new Date(today.getTime() + (6 - today.getDa
 
   <ol class="list">
     {logs.map((l) => (
-      <li>
-        <a href={url(`logs/${l.id}`)}>
-          <span class="meta">Day {l.dayNo} · {fmt(l.data.date)}</span>
-          <span class="title">{l.data.title}</span>
-        </a>
-        <div>{l.data.tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+      <li class:list={{ 'has-thumb': l.data.cover }}>
+        <div>
+          <a href={url(`logs/${l.id}`)}>
+            <span class="meta">Day {l.dayNo} · {fmt(l.data.date)}</span>
+            <span class="title">{l.data.title}</span>
+          </a>
+          <div>{l.data.tags.map((t) => <a class="chip" href={url(`tags/${t}`)}>#{t}</a>)}</div>
+        </div>
+        {l.data.cover && (
+          <a href={url(`logs/${l.id}`)} tabindex="-1" aria-hidden="true">
+            <Image class="thumb" src={l.data.cover} alt="" width={240} />
+          </a>
+        )}
       </li>
     ))}
   </ol>
@@ -54,8 +62,10 @@ for (const c = new Date(start); c <= new Date(today.getTime() + (6 - today.getDa
   .grass i.future { background: transparent; }
   .list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
   .list li { padding: 18px 0; border-bottom: 1px solid var(--line); }
-  .list li > a { display: block; text-decoration: none; margin-bottom: 6px; }
+  .list li.has-thumb { display: flex; gap: 20px; justify-content: space-between; align-items: center; }
+  .list li > div > a { display: block; text-decoration: none; margin-bottom: 6px; }
+  .thumb { display: block; width: 120px; height: 76px; object-fit: cover; object-position: top; border-radius: 8px; border: 1px solid var(--line); flex-shrink: 0; }
   .meta { display: block; color: var(--muted); font-size: 0.82rem; }
   .title { font-weight: 600; font-size: 1.1rem; }
-  .list li > a:hover .title { color: var(--accent); }
+  .list li a:hover .title { color: var(--accent); }
 </style>

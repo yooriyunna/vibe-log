@@ -5,7 +5,8 @@ export type Log = CollectionEntry<'logs'> & { dayNo: number };
 /** 공개 글을 날짜 오름차순으로 읽고 N일차를 매긴 뒤, 최신순으로 돌려줍니다. */
 export async function getLogs(): Promise<Log[]> {
   const all = await getCollection('logs', ({ data }) => !data.draft);
-  const asc = all.sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf());
+  // 날짜순, 같은 날이면 파일 이름순 (2026-11-17.md → 2026-11-17-2.md)
+  const asc = all.sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf() || a.id.localeCompare(b.id));
   return asc.map((e, i) => ({ ...e, dayNo: e.data.day ?? i + 1 })).reverse();
 }
 
