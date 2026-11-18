@@ -82,6 +82,8 @@
     pointer-events: none; transition: transform 0.2s ease-in-out; z-index: 2; }
   .visitor i { width: 44%; height: 44%; border-radius: 50%; background: var(--fg); box-shadow: 0 2px 8px rgba(0,0,0,.25);
     display: grid; place-items: center; font-style: normal; font-size: clamp(0.9rem, 3.4vw, 1.3rem); }
+  .visitor i { transition: transform 0.2s ease-out; }
+  .visitor.idle i { transform: translate(62%, 62%) scale(0.55); }
   .visitor.lost i { background: var(--red); }
   .visitor.off { opacity: 0.45; }
   .visitor.off i { transform: scale(0.75); }
@@ -321,7 +323,7 @@
       b.appendChild(el);
     }));
     visitorEl = document.createElement('div');
-    visitorEl.className = 'visitor';
+    visitorEl.className = 'visitor idle';
     visitorEl.innerHTML = '<i>🙂</i>';
     b.appendChild(visitorEl);
     placeVisitor(...L.start, true);
@@ -360,7 +362,7 @@
   function clearResult() {
     if (!L) return;
     L.grid.flat().forEach((c) => c.el && c.el.classList.remove('trail', 'bad'));
-    visitorEl.className = 'visitor'; visitorEl.innerHTML = '<i>🙂</i>';
+    visitorEl.className = 'visitor idle'; visitorEl.innerHTML = '<i>🙂</i>';
     placeVisitor(...L.start, true);
   }
 
@@ -368,6 +370,7 @@
     if (running) return;
     clearResult();
     running = true; $('btn-run').disabled = true;
+    visitorEl.classList.remove('idle');
     const path = [];
     let [r, c] = L.start;
     const seen = new Set();
