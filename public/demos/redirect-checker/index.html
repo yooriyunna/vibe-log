@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>리다이렉트 URL 정리기 · Vibe Log</title>
+<meta name="description" content="리다이렉트 목록을 붙여넣으면 중복·충돌·체인·순환·국가 불일치를 찾아 정리해 주는 도구. 브라우저 안에서만 처리합니다." />
+<script>
+  (() => {
+    let t = null;
+    try { t = localStorage.getItem('theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a65; --line: #e6e3dc; --panel: #ffffff;
+    --accent: #2f6f4f; --accent-soft: #e3efe8; --chip: #f0eee8;
+    --red: #b4382f; --red-soft: #f8e4e1; --amber: #9a6a00; --amber-soft: #f8eed6;
+    --blue: #2c5d9e; --blue-soft: #e2ebf7; --violet: #6b4aa6; --violet-soft: #ece6f6;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --bg: #151614; --fg: #ecebe6; --muted: #9a998f; --line: #2b2c29; --panel: #1b1c1a;
+    --accent: #7cc39c; --accent-soft: #1f2e26; --chip: #23241f;
+    --red: #f08a80; --red-soft: #3a201d; --amber: #e2b54d; --amber-soft: #352b14;
+    --blue: #8fb4ea; --blue-soft: #1c2738; --violet: #b9a0e6; --violet-soft: #2a2238;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.6; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  header.top { display: flex; justify-content: space-between; align-items: center; padding: 24px 20px; }
+  header.top a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+  header.top a:hover { color: var(--fg); }
+  .theme-btn { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line);
+    border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+  .theme-btn .i-sun { display: none; }
+  :root[data-theme='dark'] .theme-btn .i-sun { display: block; }
+  :root[data-theme='dark'] .theme-btn .i-moon { display: none; }
+  h1 { font-size: 1.9rem; letter-spacing: -0.03em; margin: 8px 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 20px; }
+  .lede b { color: var(--accent); font-weight: 600; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  textarea { width: 100%; min-height: 180px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--fg); padding: 12px; font: 0.85rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  textarea:focus, button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 12px; }
+  .controls label { display: inline-flex; gap: 6px; align-items: center; font-size: 0.88rem; color: var(--muted); cursor: pointer; }
+  .controls .spacer { flex: 1; }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px;
+    padding: 8px 14px; font: inherit; font-size: 0.9rem; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .hint { font-size: 0.8rem; color: var(--muted); margin: 8px 0 0; }
+
+  .summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 24px 0 14px; }
+  .card { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 10px 12px; text-align: left;
+    cursor: pointer; font: inherit; color: var(--fg); }
+  .card b { display: block; font-size: 1.4rem; line-height: 1.2; }
+  .card span { font-size: 0.8rem; color: var(--muted); }
+  .card[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .card.zero { opacity: 0.55; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .bar .count { color: var(--muted); font-size: 0.85rem; margin-right: auto; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; font-size: 0.78rem; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.n { color: var(--muted); font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
+  td.url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; word-break: break-all; min-width: 200px; }
+  td.final.changed { color: var(--accent); font-weight: 600; }
+  td.ok { color: var(--muted); }
+  .tag { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin: 1px 4px 1px 0; white-space: nowrap; }
+  .t-dup { background: var(--chip); color: var(--muted); }
+  .t-conflict, .t-loop, .t-self { background: var(--red-soft); color: var(--red); }
+  .t-chain { background: var(--blue-soft); color: var(--blue); }
+  .t-country { background: var(--violet-soft); color: var(--violet); }
+  .t-temp { background: var(--amber-soft); color: var(--amber); }
+  .empty { padding: 36px; text-align: center; color: var(--muted); }
+
+  .legend { margin: 28px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px 20px; font-size: 0.85rem; color: var(--muted); }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; transition: 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  footer { color: var(--muted); font-size: 0.8rem; padding: 40px 20px; }
+</style>
+</head>
+<body>
+<header class="top wrap">
+  <a href="../../">← Vibe Log</a>
+  <button id="theme-toggle" class="theme-btn" type="button" aria-label="다크모드 전환">
+    <svg class="i-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="currentColor"/></svg>
+    <svg class="i-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>
+  </button>
+</header>
+
+<main class="wrap">
+  <h1>리다이렉트 URL 정리기</h1>
+  <p class="lede">엑셀에서 리다이렉트 목록을 복사해 붙여넣으면 중복·충돌·체인·순환·국가 불일치를 찾아 줘요. <b>입력한 데이터는 브라우저 밖으로 나가지 않아요.</b></p>
+
+  <section class="panel">
+    <label for="input" class="sr-only" style="position:absolute;left:-9999px">리다이렉트 목록</label>
+    <textarea id="input" spellcheck="false" placeholder="구 URL [탭] 신 URL [탭] 상태코드(선택)
+/sg/support/faq-001/	/sg/support/category/tv/	301
+/sg/support/faq-002/	/sg/support/category/audio/	301
+
+※ 첫 줄이 Address, Redirect URL 같은 머리글이면 자동으로 건너뛰어요. 쉼표(CSV)로 구분된 것도 돼요."></textarea>
+    <div class="controls">
+      <label><input type="checkbox" id="opt-domain" checked /> 도메인 무시 (경로만 비교)</label>
+      <label><input type="checkbox" id="opt-slash" checked /> 끝 슬래시(/) 무시</label>
+      <label><input type="checkbox" id="opt-case" /> 대소문자 무시</label>
+      <span class="spacer"></span>
+      <button class="btn" id="btn-sample" type="button">예시 넣기</button>
+      <button class="btn" id="btn-clear" type="button">지우기</button>
+      <button class="btn primary" id="btn-run" type="button">검사하기</button>
+    </div>
+    <p class="hint">열 순서: 1열 = 구 URL(From), 2열 = 신 URL(To), 3열 = 상태코드(선택). 머리글에 Address / Redirect URL / Status Code가 있으면 그 이름으로 열을 찾아요.</p>
+  </section>
+
+  <section id="result" hidden>
+    <div class="summary" id="summary"></div>
+    <div class="bar">
+      <span class="count" id="count"></span>
+      <button class="btn" id="btn-copy" type="button">정리본 복사 (엑셀용)</button>
+      <button class="btn" id="btn-csv" type="button">CSV 다운로드</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>구 URL (From)</th><th>신 URL (To)</th><th>최종 목적지 (제안)</th><th>단계</th><th>코드</th><th>문제</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <ul class="legend">
+      <li><span class="tag t-dup">중복</span> From·To가 똑같은 행이 또 있음 — 정리본에서 1개만 남겨요</li>
+      <li><span class="tag t-conflict">충돌</span> 같은 From인데 To가 서로 다름 — 하나로 정해야 해요</li>
+      <li><span class="tag t-chain">체인</span> To가 다시 다른 곳으로 리다이렉트됨 — 최종 목적지로 바로 보내는 게 좋아요</li>
+      <li><span class="tag t-loop">순환</span> 돌고 돌아 다시 자기에게 돌아옴 — 페이지가 안 열려요</li>
+      <li><span class="tag t-self">자기 자신</span> From과 To가 같음</li>
+      <li><span class="tag t-country">국가 불일치</span> From과 최종 목적지의 국가 코드(/sg/, /uk/ 등)가 다름</li>
+      <li><span class="tag t-temp">임시(30x)</span> 301이 아닌 302·307 등 — 영구 이전이면 301이 맞아요</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="wrap">Vibe Log · 리다이렉트 URL 정리기</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- 테마 ----------
+  $('theme-toggle').addEventListener('click', () => {
+    const r = document.documentElement;
+    const next = r.dataset.theme === 'dark' ? 'light' : 'dark';
+    r.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+
+  // ---------- 예시 데이터 ----------
+  const SAMPLE = [
+    ['Address', 'Redirect URL', 'Status Code'],
+    ['https://www.example.com/sg/support/faq-001/', 'https://www.example.com/sg/support/category/tv/', '301'],
+    ['https://www.example.com/sg/support/faq-002/', 'https://www.example.com/sg/support/faq-002-new/', '301'],
+    ['https://www.example.com/sg/support/faq-002-new/', 'https://www.example.com/sg/support/category/audio/', '301'],
+    ['https://www.example.com/sg/support/faq-003/', 'https://www.example.com/sg/support/category/mobile/', '301'],
+    ['https://www.example.com/sg/support/faq-003/', 'https://www.example.com/sg/support/category/wearables/', '301'],
+    ['https://www.example.com/sg/support/faq-004/', 'https://www.example.com/sg/support/category/tv/', '301'],
+    ['https://www.example.com/sg/support/faq-004/', 'https://www.example.com/sg/support/category/tv', '301'],
+    ['https://www.example.com/sg/support/faq-005/', 'https://www.example.com/sg/support/faq-006/', '301'],
+    ['https://www.example.com/sg/support/faq-006/', 'https://www.example.com/sg/support/faq-005/', '301'],
+    ['https://www.example.com/sg/support/faq-007/', 'https://www.example.com/uk/support/category/tv/', '301'],
+    ['https://www.example.com/sg/support/faq-008/', 'https://www.example.com/sg/support/faq-008/', '301'],
+    ['https://www.example.com/sg/support/faq-009/', 'https://www.example.com/sg/support/category/home-appliances/', '302'],
+  ].map((r) => r.join('\t')).join('\n');
+
+  // ---------- 파싱 ----------
+  function splitLine(line, delim) {
+    if (delim === '\t') return line.split('\t');
+    // 간단한 CSV: 따옴표 안의 쉼표는 무시
+    const out = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (c === delim && !q) { out.push(cur); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function parse(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim());
+    if (!lines.length) return { rows: [], skipped: 0 };
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+    let cells = lines.map((l) => splitLine(l, delim).map((c) => c.trim()));
+
+    let iFrom = 0, iTo = 1, iCode = 2;
+    const looksUrl = (s) => /^(https?:\/\/|\/)/i.test(s || '');
+    const head = cells[0];
+    if (!looksUrl(head[0]) || !looksUrl(head[1])) {
+      const find = (re) => head.findIndex((h) => re.test(h));
+      const f = find(/^(address|from|source|old|구|원본|기존)/i);
+      const t = find(/(redirect\s*url|^to$|target|destination|new|신|대상|이동)/i);
+      const c = find(/(status|code|코드)/i);
+      if (f >= 0) iFrom = f;
+      if (t >= 0) iTo = t;
+      iCode = c >= 0 ? c : -1;
+      cells = cells.slice(1);
+    }
+    let skipped = 0;
+    const rows = [];
+    cells.forEach((c, idx) => {
+      const from = c[iFrom] || '', to = c[iTo] || '';
+      if (!from || !to) { skipped++; return; }
+      rows.push({ line: idx + 1, from, to, code: iCode >= 0 ? (c[iCode] || '') : '' });
+    });
+    return { rows, skipped };
+  }
+
+  // ---------- 정규화 ----------
+  function normalize(u, opt) {
+    let url;
+    try { url = new URL(u, 'https://__base__.invalid'); } catch (e) { return u.trim(); }
+    let path = url.pathname;
+    try { path = decodeURI(path); } catch (e) {}
+    if (opt.slash && path.length > 1) path = path.replace(/\/+$/, '');
+    let host = url.host === '__base__.invalid' ? '' : url.host.toLowerCase();
+    let key = (opt.domain ? '' : host) + path + url.search;
+    if (opt.caseless) key = key.toLowerCase();
+    return key;
+  }
+
+  const country = (key) => {
+    const seg = key.replace(/^[^/]*/, '').split('/')[1] || '';
+    return /^[a-z]{2}([_-][a-z]{2})?$/i.test(seg) ? seg.toLowerCase() : '';
+  };
+
+  // ---------- 분석 ----------
+  function analyze(rows, opt) {
+    rows.forEach((r) => { r.fk = normalize(r.from, opt); r.tk = normalize(r.to, opt); r.issues = new Set(); });
+
+    // From별 첫 행 / 중복·충돌
+    const byFrom = new Map();
+    rows.forEach((r) => {
+      if (!byFrom.has(r.fk)) byFrom.set(r.fk, []);
+      byFrom.get(r.fk).push(r);
+    });
+    byFrom.forEach((list) => {
+      if (list.length < 2) return;
+      const targets = new Set(list.map((r) => r.tk));
+      if (targets.size > 1) list.forEach((r) => r.issues.add('conflict'));
+      const seen = new Set();
+      list.forEach((r) => { if (seen.has(r.tk)) r.issues.add('dup'); seen.add(r.tk); });
+    });
+
+    // 경로 따라가기 (같은 From이 여러 개면 첫 번째 행 기준)
+    const next = new Map();
+    byFrom.forEach((list, k) => next.set(k, list[0]));
+
+    rows.forEach((r) => {
+      if (r.fk === r.tk) { r.issues.add('self'); r.final = r.to; r.hops = 1; return; }
+      const visited = new Set([r.fk]);
+      let cur = r.tk, finalRaw = r.to, hops = 1;
+      while (next.has(cur)) {
+        if (visited.has(cur)) { r.issues.add('loop'); break; }
+        visited.add(cur);
+        const nr = next.get(cur);
+        if (nr.fk === nr.tk) break;
+        cur = nr.tk; finalRaw = nr.to; hops++;
+        if (hops > 30) { r.issues.add('loop'); break; }
+      }
+      r.hops = hops;
+      r.final = finalRaw;
+      r.finalKey = cur;
+      if (hops > 1 && !r.issues.has('loop')) r.issues.add('chain');
+    });
+
+    rows.forEach((r) => {
+      const a = country(r.fk), b = country(r.finalKey || r.tk);
+      if (a && b && a !== b) r.issues.add('country');
+      if (r.code && /^30[2378]$/.test(r.code)) r.issues.add('temp');
+    });
+    return rows;
+  }
+
+  // ---------- 화면 ----------
+  const TYPES = [
+    ['all', '전체 행'],
+    ['problem', '문제 있는 행'],
+    ['conflict', '충돌'],
+    ['loop', '순환'],
+    ['self', '자기 자신'],
+    ['chain', '체인'],
+    ['country', '국가 불일치'],
+    ['temp', '임시(30x)'],
+    ['dup', '중복'],
+  ];
+  const LABEL = Object.fromEntries(TYPES.filter(([k]) => k !== 'all' && k !== 'problem'));
+  LABEL.temp = '임시(30x)';
+  const ORDER = ['conflict', 'loop', 'self', 'chain', 'country', 'temp', 'dup'];
+
+  let state = { rows: [], filter: 'problem' };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function render() {
+    const { rows, filter } = state;
+    const counts = { all: rows.length, problem: rows.filter((r) => r.issues.size).length };
+    ORDER.forEach((k) => (counts[k] = rows.filter((r) => r.issues.has(k)).length));
+
+    $('summary').innerHTML = TYPES.map(([k, label]) =>
+      `<button class="card${counts[k] ? '' : ' zero'}" data-k="${k}" aria-pressed="${filter === k}" type="button"><b>${counts[k]}</b><span>${label}</span></button>`
+    ).join('');
+
+    const shown = rows.filter((r) => filter === 'all' || (filter === 'problem' ? r.issues.size : r.issues.has(filter)));
+    $('count').textContent = `${rows.length}행 중 ${shown.length}행 표시`;
+    $('tbody').innerHTML = shown.length ? shown.map((r) => {
+      const tags = ORDER.filter((k) => r.issues.has(k)).map((k) => `<span class="tag t-${k}">${LABEL[k]}</span>`).join('');
+      const changed = r.issues.has('chain');
+      return `<tr>
+        <td class="n">${r.line}</td>
+        <td class="url">${esc(r.from)}</td>
+        <td class="url">${esc(r.to)}</td>
+        <td class="url final${changed ? ' changed' : ''}">${r.issues.has('loop') || r.issues.has('self') ? '—' : esc(r.final)}</td>
+        <td class="n">${r.hops}</td>
+        <td class="n">${esc(r.code || '')}</td>
+        <td>${tags || '<span class="ok">정상</span>'}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="7" class="empty">해당하는 행이 없어요 👍</td></tr>`;
+  }
+
+  $('summary').addEventListener('click', (e) => {
+    const b = e.target.closest('.card'); if (!b) return;
+    state.filter = b.dataset.k; render();
+  });
+
+  function run() {
+    const { rows, skipped } = parse($('input').value);
+    if (!rows.length) { toast('붙여넣은 내용에서 URL 두 열을 찾지 못했어요.'); return; }
+    const opt = { domain: $('opt-domain').checked, slash: $('opt-slash').checked, caseless: $('opt-case').checked };
+    state.rows = analyze(rows, opt);
+    state.filter = state.rows.some((r) => r.issues.size) ? 'problem' : 'all';
+    $('result').hidden = false;
+    render();
+    if (skipped) toast(`빈 칸이 있는 ${skipped}행은 건너뛰었어요.`);
+    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 정리본: 완전 중복 제거, 체인은 최종 목적지로 펼침, 문제는 비고에 남김
+  function cleaned() {
+    const seen = new Set();
+    const out = [['From', 'To (정리)', 'Status Code', '비고']];
+    state.rows.forEach((r) => {
+      if (r.issues.has('dup')) return;
+      const key = r.fk + '→' + r.tk; if (seen.has(key)) return; seen.add(key);
+      const to = r.issues.has('loop') || r.issues.has('self') ? r.to : r.final;
+      const note = ORDER.filter((k) => k !== 'dup' && r.issues.has(k)).map((k) => LABEL[k]);
+      if (r.issues.has('chain')) note.push(`원래 To: ${r.to}`);
+      out.push([r.from, to, r.code || '', note.join(' / ')]);
+    });
+    return out;
+  }
+
+  $('btn-copy').addEventListener('click', async () => {
+    const tsv = cleaned().map((r) => r.join('\t')).join('\n');
+    try { await navigator.clipboard.writeText(tsv); toast('복사했어요. 엑셀에 바로 붙여넣으세요.'); }
+    catch (e) { toast('복사가 막혔어요. CSV 다운로드를 이용해 주세요.'); }
+  });
+
+  $('btn-csv').addEventListener('click', () => {
+    const csv = cleaned().map((r) => r.map((c) => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `redirect-cleaned-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  $('btn-run').addEventListener('click', run);
+  $('btn-sample').addEventListener('click', () => { $('input').value = SAMPLE; run(); });
+  $('btn-clear').addEventListener('click', () => { $('input').value = ''; $('result').hidden = true; $('input').focus(); });
+  ['opt-domain', 'opt-slash', 'opt-case'].forEach((id) => $(id).addEventListener('change', () => { if (!$('result').hidden) run(); }));
+  $('input').addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run(); });
+
+  let tt;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+})();
+</script>
+</body>
+</html>
